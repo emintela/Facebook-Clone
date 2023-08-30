@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from PIL import Image
-#from shortuuid.django_fields import ShortUUIDField
+from shortuuid.django_fields import ShortUUIDField
+from django.db.models.signals import post_save
 
 
 
@@ -47,14 +48,14 @@ def user_directory_path(instance, filename):
     
 # user profile. Profile and User model are linked via a 1 to 1 relationship
 class Profile(models.Model):
-    pid = models.CharField(max_length=30)
+    pid = ShortUUIDField(length=7, max_length=25, alphabet="abcdefghijklmnopqrstuvxyz123")
     full_name = models.CharField(max_length=250,null=True,blank=True)
     gender = models.CharField(max_length=100,choices=GENDER)
     phone = models.CharField(max_length=200,null=True , blank = True)
     bio = models.CharField(max_length=250 , null = True , blank= True)
-    about_me = models.TextField(null=True , blank = True)
-    image = models.ImageField()
-    cover_image = models.ImageField()
+    about_me = models.TextField(null=True , blank = True  )
+    image = models.ImageField(blank=True,null=True)
+    cover_image = models.ImageField(blank=True,null=True)
     user = models.OneToOneField(User , on_delete = models.CASCADE)
     relationship = models.CharField(max_length=100, choices=RELATIONSHIP, null=True, blank=True, default="single")
     friends_visibility = models.CharField(max_length=100, choices=WHO_CAN_SEE_MY_FRIENDS, null=True, blank=True, default="Everyone")
@@ -70,9 +71,29 @@ class Profile(models.Model):
     followings = models.ManyToManyField(User, blank=True, related_name="followings")
     friends = models.ManyToManyField(User, blank=True, related_name="friends")
     #groups = models.ManyToManyField("mainApp.Group", blank=True, related_name="groups")
-    #pages = models.ManyToManyField("mainApp.Page", blank=True, related_name="pages")
+    
     blocked = models.ManyToManyField(User, blank=True, related_name="blocked")
     date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+   
+
+    def __str__(self):
+        if self.full_name:
+            return str(self.full_name)
+        else:
+            return str(self.user.username)
+        
+def create_user_profile(sender, instance, created, **kwargs):
+	if created:
+		Profile.objects.create(user=instance)
+
+def save_user_profile(sender, instance, **kwargs):
+	instance.profile.save()
+
+
+post_save.connect(create_user_profile, sender=User)
+post_save.connect(save_user_profile, sender=User)
+    
+    
 
 
 
